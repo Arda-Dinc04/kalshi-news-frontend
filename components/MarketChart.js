@@ -22,7 +22,7 @@ export default function MarketChart() {
       ChartJSModule.LinearScale,
       ChartJSModule.PointElement,
       ChartJSModule.Tooltip,
-      ChartJSModule.Legend
+      ChartJSModule.Legend,
     );
 
     const data = {

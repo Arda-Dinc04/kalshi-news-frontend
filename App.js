@@ -3,16 +3,25 @@ import "./global.css";
 
 import { StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator } from "@react-navigation/stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import DashboardScreen from "./screens/DashboardScreen";
+import OnboardingScreen from "./screens/OnboardingScreen";
 import NavigationBar from "./components/NavigationBar";
+
+const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <NavigationBar />
+        <Stack.Navigator
+          initialRouteName="Onboarding"
+          screenOptions={{ headerShown: false }}
+        >
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="Main" component={NavigationBar} />
+        </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
   );
