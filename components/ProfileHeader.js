@@ -14,7 +14,7 @@ export default function ProfileHeader() {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    paddingTop: 50,
+    paddingTop: 20,
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: "#fff",

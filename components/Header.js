@@ -1,13 +1,35 @@
-import { View, Text } from "react-native";
-export default function Header() {
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+
+export default function ProfileHeader() {
   return (
-    <View className="bg-gray-50 px-4 pt-6">
-      <View className="flex-row justify-between items-center mb-4">
-        <Text className="text-3xl font-bold text-[#10b981]">Kalshi</Text>
-        <View className="flex-row items-center bg-gray-100 px-3 py-1 rounded-full">
-          <Text className="text-gray-400">🔍 Search</Text>
-        </View>
-      </View>
+    <View style={styles.headerContainer}>
+      <Text style={styles.headerText}>
+        <Text style={styles.kalshi}>Kalshi</Text>
+        <Text style={styles.news}>News</Text>
+      </Text>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  headerContainer: {
+    paddingTop: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E6E7EB",
+  },
+  headerText: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+  },
+  kalshi: {
+    color: "#18C389",
+  },
+  news: {
+    color: "#000000",
+  },
+});
