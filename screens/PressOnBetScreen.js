@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ScrollView,
   View,
@@ -6,73 +6,71 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Linking,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import DashboardHeader from "../components/DashboardHeader";
+import { getNewsByEvent, getEventById } from "../services/api";
 
 export default function PressOnBetScreen({ navigation, route }) {
   const [selectedVote, setSelectedVote] = useState(null);
+  const [newsArticles, setNewsArticles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [eventData, setEventData] = useState(null);
 
+  const eventId = route?.params?.eventId; // Mongo _id
+  const eventTicker = route?.params?.eventTicker; // ticker string
+
+  useEffect(() => {
+    if (eventId && eventTicker) {
+      fetchEventAndNews();
+    }
+  }, [eventId, eventTicker]);
+
+  const fetchEventAndNews = async () => {
+    try {
+      setLoading(true);
+      const [event, news] = await Promise.all([
+        getEventById(eventTicker), // <— ticker
+        getNewsByEvent(eventId), // <— _id
+      ]);
+      setEventData(event);
+      
+      const allNews = Array.isArray(news) ? news : [];
+      setNewsArticles(allNews);
+    } catch (error) {
+      console.error("Error fetching event/news:", error);
+      setNewsArticles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const market = eventData?.markets?.[0];
+  // Prefer the event question; fall back to market name, then generic
   const betTitle =
-    route?.params?.title || "Next US Presidential Election Winner?";
-  const candidates = route?.params?.candidates || [
-    { name: "J.D. Vance", percentage: 32 },
-    { name: "Gavin Newsom", percentage: 22 },
+    eventData?.title || market?.name || "Market question";
+  const yesPrice = market?.yes_price || 0;
+  const noPrice = market?.no_price || 0;
+  
+  // Convert prices to percentages
+  const total = yesPrice + noPrice;
+  const yesPercentage = total > 0 ? Math.round((yesPrice / total) * 100) : 0;
+  const noPercentage = total > 0 ? Math.round((noPrice / total) * 100) : 0;
+  
+  const candidates = [
+    { name: "Yes", percentage: yesPercentage },
+    { name: "No", percentage: noPercentage },
   ];
 
-  const newsArticles = [
-    {
-      id: 1,
-      title:
-        "Kalshi markets still forecast record-breaking government shutdown",
-      category: "Politics",
-      source: "CNN",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-    {
-      id: 2,
-      title: "What to expect out of New York on Election Day?",
-      category: "Politics",
-      source: "CNBC News",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-    {
-      id: 3,
-      title: "Trump arrives in South Korea: Senate rejects latest funding bill",
-      category: "Politics",
-      source: "Fox News",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-    {
-      id: 4,
-      title: "Newsom 2028: California Governor To Decide On White House Bid",
-      category: "Politics",
-      source: "BBC",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-    {
-      id: 5,
-      title:
-        "Donald Trump Ponders Third Term: \"I'm Not Allowed to Run. It's Too Bad\"",
-      category: "Politics",
-      source: "New York Times",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-    {
-      id: 6,
-      title: "Probable Candidates for 2028: Gavin Newsom vs. J.D. Vance?",
-      category: "Politics",
-      source: "Washington Post",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-    {
-      id: 7,
-      title: "2028 Democratic Polls Show Top Candidates in Three States",
-      category: "Politics",
-      source: "ABC News",
-      image: "https://via.placeholder.com/80x60/4A5568/FFFFFF?text=News",
-    },
-  ];
+  const extractSourceFromUrl = (url) => {
+    if (!url) return "Unknown";
+    try {
+      const domain = new URL(url).hostname;
+      return domain.replace("www.", "").split(".")[0];
+    } catch {
+      return "Unknown";
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -86,9 +84,7 @@ export default function PressOnBetScreen({ navigation, route }) {
         <View style={styles.betCard}>
           <View style={styles.betHeader}>
             <Image
-              source={{
-                uri: "https://blocks.astratic.com/img/general-img-landscape.png",
-              }}
+              source={require("../assets/kalshiLogo.png")}
               style={styles.betIcon}
             />
             <Text style={styles.betTitle}>{betTitle}</Text>
@@ -144,23 +140,47 @@ export default function PressOnBetScreen({ navigation, route }) {
         </View>
 
         {/* mapping through news articles related to the bet */}
-        {newsArticles.map((article) => (
-          <TouchableOpacity key={article.id} style={styles.newsCard}>
-            <View style={styles.newsContent}>
-              <Text style={styles.newsTitle}>{article.title}</Text>
-              <Text style={styles.newsCategory}>{article.category}</Text>
-            </View>
-            <View style={styles.newsRight}>
-              <Image
-                source={{
-                  uri: "https://blocks.astratic.com/img/general-img-landscape.png",
-                }}
-                style={styles.newsImage}
-              />
-              <Text style={styles.newsSource}>{article.source}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {loading ? (
+          <Text style={styles.loadingText}>Loading related news...</Text>
+        ) : newsArticles.length > 0 ? (
+          newsArticles.map((article) => (
+            <TouchableOpacity 
+              key={article.id || article._id} 
+              style={styles.newsCard}
+              onPress={() => {
+                if (article.canonical_url) {
+                  Linking.openURL(article.canonical_url).catch((err) =>
+                    console.error("Failed to open URL:", err)
+                  );
+                }
+              }}
+            >
+              <View style={styles.newsContent}>
+                <Text style={styles.newsTitle}>{article.title}</Text>
+                {article.snippet && (
+                  <Text style={styles.newsSnippet} numberOfLines={2}>
+                    {article.snippet}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.newsRight}>
+                <Image
+                  source={
+                    article.thumbnail
+                      ? { uri: article.thumbnail }
+                      : require("../assets/kalshiLogo.png")
+                  }
+                  style={styles.newsImage}
+                />
+                <Text style={styles.newsSource}>
+                  {article.source || extractSourceFromUrl(article.canonical_url)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        ) : (
+          <Text style={styles.loadingText}>No related news available</Text>
+        )}
 
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -307,5 +327,17 @@ const styles = StyleSheet.create({
   newsSource: {
     fontSize: 12,
     color: "#9CA3AF",
+  },
+  newsSnippet: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 20,
   },
 });

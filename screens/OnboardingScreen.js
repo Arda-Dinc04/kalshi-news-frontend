@@ -81,14 +81,12 @@ export default function OnboardingScreen({ navigation }) {
 
   const handleConnectWallet = () => {
     // Navigate to topic picker screen
-    console.log("Connect wallet pressed!");
     if (navigation) {
       navigation.navigate("TopicPicker");
     }
   };
 
   const handleCreateWallet = () => {
-    console.log("Create wallet pressed");
   };
 
   const wheelAnimatedStyle = useAnimatedStyle(() => {

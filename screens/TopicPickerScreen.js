@@ -34,8 +34,6 @@ export default function TopicPickerScreen({ navigation }) {
 
   const handleDone = () => {
     if (selectedTopics.length > 0) {
-      // Save selected topics and navigate to dashboard
-      console.log("Selected topics:", selectedTopics);
       navigation.navigate("Main");
     }
   };
@@ -68,8 +66,9 @@ export default function TopicPickerScreen({ navigation }) {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
           bounces={true}
+          nestedScrollEnabled={true}
         >
           {/* Title */}
           <Text style={styles.title}>Topics you are interested in?</Text>
@@ -169,7 +168,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingBottom: 250,
+    paddingBottom: 40,
+    flexGrow: 1,
   },
   title: {
     fontSize: 20,

@@ -6,6 +6,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -19,18 +20,35 @@ export default function NewsMarketCard({
   marketQuestion,
   candidates,
   onSeeMorePress,
+  newsUrl,
   isActive = true,
 }) {
+  const handleNewsPress = () => {
+    if (newsUrl) {
+      Linking.openURL(newsUrl).catch((err) =>
+        console.error("Failed to open URL:", err)
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* News Header Section */}
-      <View style={styles.newsHeader}>
+      <TouchableOpacity
+        style={styles.newsHeader}
+        onPress={handleNewsPress}
+        disabled={!newsUrl}
+        activeOpacity={newsUrl ? 0.7 : 1}
+      >
         <View style={styles.newsTextContainer}>
           <Text style={styles.newsTitle}>{newsTitle}</Text>
           <Text style={styles.newsCategory}>{newsCategory}</Text>
         </View>
-        <Image source={newsImage} style={styles.newsImage} />
-      </View>
+        <Image 
+          source={typeof newsImage === 'string' ? { uri: newsImage } : newsImage} 
+          style={styles.newsImage} 
+        />
+      </TouchableOpacity>
 
       {/* Centered Dots */}
       <View style={styles.dotContainer}>

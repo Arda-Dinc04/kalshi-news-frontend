@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,9 +9,46 @@ import {
 import DashboardHeader from "../components/DashboardHeader";
 import MarketChart from "../components/MarketChart";
 import NewsMarketCard from "../components/NewsMarketCard";
+import { getEvents, getEventsByCategory } from "../services/api";
 
 export default function DashboardScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState("Trending");
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Map UI categories to API categories
+  const categoryMap = {
+    "Trending": null, // Show all events
+    "Politics": "Politics",
+    "Entertainment": "Entertainment",
+    "Economics": "Economics",
+    "Health": "Health",
+    "Climate and Weather": "Climate and Weather",
+    "Companies": "Companies",
+    "Crypto": "Crypto",
+    "Elections": "Elections",
+    "Financials": "Economics", // Map Financials to Economics
+    "Mentions": "Mentions",
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, [selectedCategory]);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const apiCategory = categoryMap[selectedCategory];
+      const data = apiCategory
+        ? await getEventsByCategory(apiCategory)
+        : await getEvents();
+      setEvents(data);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -29,12 +66,15 @@ export default function DashboardScreen({ navigation }) {
           {[
             "Trending",
             "Politics",
-            "Sports",
-            "Finance",
-            "Culture",
-            "Science",
-            "Technology",
             "Entertainment",
+            "Economics",
+            "Health",
+            "Climate and Weather",
+            "Companies",
+            "Crypto",
+            "Elections",
+            "Financials",
+            "Mentions",
           ].map((curr) => (
             <TouchableOpacity
               key={curr}
@@ -62,34 +102,62 @@ export default function DashboardScreen({ navigation }) {
 
         <Text style={styles.forYouTitle}>For You</Text>
 
-        {/* News Market Card component */}
-        <NewsMarketCard
-          newsTitle="Kalshi markets still forecast record-breaking government shutdown"
-          newsCategory="Politics"
-          newsImage={require("../assets/icon.png")}
-          marketIcon={require("../assets/icon.png")}
-          marketQuestion="Next US Presidential Election Winner?"
-          candidates={[
-            { name: "J.D. Vance", percentage: 32 },
-            { name: "Gavin Newsom", percentage: 22 },
-          ]}
-          onSeeMorePress={() => navigation.navigate("PressOnBet")}
-          isActive={true}
-        />
+        {/* News Market Card component - dynamically loaded from API */}
+        {loading ? (
+          <Text style={styles.loadingText}>Loading events...</Text>
+        ) : (
+          events
+            // only keep events that have at least one news item **with** a thumbnail
+            .filter(
+              (event) =>
+                event.markets?.[0] &&
+                event.related_news?.some((n) => n?.thumbnail)
+            )
+            .map((event, index) => {
+              const market = event.markets[0];
 
-        <NewsMarketCard
-          newsTitle="Will there be a government shutdown in 2025?"
-          newsCategory="Politics"
-          newsImage={require("../assets/icon.png")}
-          marketIcon={require("../assets/icon.png")}
-          marketQuestion="Government Shutdown Before 2026?"
-          candidates={[
-            { name: "Yes", percentage: 65 },
-            { name: "No", percentage: 35 },
-          ]}
-          onSeeMorePress={() => navigation.navigate("PressOnBet")}
-          isActive={false}
-        />
+              // pick the FIRST related_news that actually has a thumbnail
+              const newsWithThumb =
+                event.related_news.find((n) => n?.thumbnail) ||
+                event.related_news[0];
+
+              const yesPrice = market.yes_price || 0;
+              const noPrice = market.no_price || 0;
+              const total = yesPrice + noPrice;
+              const yesPercentage =
+                total > 0 ? Math.round((yesPrice / total) * 100) : 0;
+              const noPercentage =
+                total > 0 ? Math.round((noPrice / total) * 100) : 0;
+
+              // Handle image fallback properly
+              const newsImage = newsWithThumb?.thumbnail
+                ? { uri: newsWithThumb.thumbnail }
+                : require("../assets/kalshiLogo.png");
+
+              return (
+                <NewsMarketCard
+                  key={event._id || index}
+                  newsTitle={newsWithThumb?.title || "No title available"}
+                  newsCategory={event.category || "Uncategorized"}
+                  newsImage={newsImage}
+                  newsUrl={newsWithThumb?.canonical_url}
+                  marketIcon={require("../assets/kalshiLogo.png")}
+                  marketQuestion={market.name || "Market question"}
+                  candidates={[
+                    { name: "Yes", percentage: yesPercentage },
+                    { name: "No", percentage: noPercentage },
+                  ]}
+                  onSeeMorePress={() =>
+                    navigation.navigate("PressOnBet", {
+                      eventId: event._id,
+                      eventTicker: event.event_ticker,
+                    })
+                  }
+                  isActive={true}
+                />
+              );
+            })
+        )}
 
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -146,5 +214,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
     height: 200,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginTop: 20,
   },
 });
