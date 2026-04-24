@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/kalshi-api/:path*",
+      "destination": "https://kalshi-streaming-34b2.onrender.com/api/:path*"
+    }
+  ]
 }
