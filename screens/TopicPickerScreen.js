@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -23,6 +24,7 @@ const TOPICS = [
 
 export default function TopicPickerScreen({ navigation }) {
   const [selectedTopics, setSelectedTopics] = useState([]);
+  const isWeb = Platform.OS === "web";
 
   const toggleTopic = (topic) => {
     if (selectedTopics.includes(topic)) {
@@ -93,26 +95,51 @@ export default function TopicPickerScreen({ navigation }) {
             })}
           </View>
 
-          {/* Done button after topics */}
-          <TouchableOpacity
-            style={[
-              styles.doneButton,
-              isDoneEnabled && styles.doneButtonEnabled,
-            ]}
-            onPress={handleDone}
-            disabled={!isDoneEnabled}
-            activeOpacity={0.8}
-          >
-            <Text
+          {!isWeb && (
+            <TouchableOpacity
               style={[
-                styles.doneButtonText,
-                isDoneEnabled && styles.doneButtonTextEnabled,
+                styles.doneButton,
+                isDoneEnabled && styles.doneButtonEnabled,
               ]}
+              onPress={handleDone}
+              disabled={!isDoneEnabled}
+              activeOpacity={0.8}
             >
-              Done
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.doneButtonText,
+                  isDoneEnabled && styles.doneButtonTextEnabled,
+                ]}
+              >
+                Done
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
+
+        {isWeb && (
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[
+                styles.doneButton,
+                styles.footerButton,
+                isDoneEnabled && styles.doneButtonEnabled,
+              ]}
+              onPress={handleDone}
+              disabled={!isDoneEnabled}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.doneButtonText,
+                  isDoneEnabled && styles.doneButtonTextEnabled,
+                ]}
+              >
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -170,6 +197,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
     flexGrow: 1,
+    width: "100%",
+    maxWidth: 1040,
+    alignSelf: "center",
   },
   title: {
     fontSize: 20,
@@ -218,5 +248,17 @@ const styles = StyleSheet.create({
   },
   doneButtonTextEnabled: {
     color: "#FFFFFF",
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 24,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#F1F1F1",
+  },
+  footerButton: {
+    maxWidth: 1040,
+    alignSelf: "center",
   },
 });

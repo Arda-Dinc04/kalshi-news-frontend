@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,46 +9,162 @@ import {
 import DashboardHeader from "../components/DashboardHeader";
 import MarketChart from "../components/MarketChart";
 import NewsMarketCard from "../components/NewsMarketCard";
-import { getEvents, getEventsByCategory } from "../services/api";
+import { getEvents } from "../services/api";
+
+const CATEGORY_ORDER = [
+  "Politics",
+  "Sports",
+  "Entertainment",
+  "Economics",
+  "Elections",
+  "Mentions",
+  "Health",
+  "Climate and Weather",
+  "Companies",
+  "Crypto",
+  "Financials",
+];
+
+const chartLabelFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
+
+function getActivityValue(event) {
+  return (event.markets || []).reduce(
+    (sum, market) => sum + (market?.volume || 0),
+    0
+  );
+}
+
+function getPrimaryMarket(event) {
+  if (!Array.isArray(event.markets) || event.markets.length === 0) {
+    return null;
+  }
+
+  return [...event.markets].sort(
+    (a, b) => (b?.volume || 0) - (a?.volume || 0)
+  )[0];
+}
+
+function getPreferredNews(event) {
+  const relatedNews = Array.isArray(event.related_news) ? event.related_news : [];
+
+  return (
+    relatedNews.find((article) => article?.title || article?.canonical_url) || null
+  );
+}
+
+function sortEvents(events) {
+  return [...events].sort((a, b) => {
+    const newsDiff =
+      (b?.related_news?.length || 0) - (a?.related_news?.length || 0);
+
+    if (newsDiff !== 0) {
+      return newsDiff;
+    }
+
+    const activityDiff = getActivityValue(b) - getActivityValue(a);
+    if (activityDiff !== 0) {
+      return activityDiff;
+    }
+
+    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+  });
+}
 
 export default function DashboardScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState("Trending");
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Map UI categories to API categories
-  const categoryMap = {
-    "Trending": null, // Show all events
-    "Politics": "Politics",
-    "Entertainment": "Entertainment",
-    "Economics": "Economics",
-    "Health": "Health",
-    "Climate and Weather": "Climate and Weather",
-    "Companies": "Companies",
-    "Crypto": "Crypto",
-    "Elections": "Elections",
-    "Financials": "Economics", // Map Financials to Economics
-    "Mentions": "Mentions",
-  };
+  const [error, setError] = useState("");
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   useEffect(() => {
     fetchEvents();
-  }, [selectedCategory]);
+  }, []);
 
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const apiCategory = categoryMap[selectedCategory];
-      const data = apiCategory
-        ? await getEventsByCategory(apiCategory)
-        : await getEvents();
-      setEvents(data);
+      setError("");
+      const data = await getEvents();
+      setEvents(Array.isArray(data) ? data : []);
+      setLastSyncedAt(new Date());
     } catch (error) {
       console.error("Error fetching events:", error);
+      setError("Live market data is temporarily unavailable.");
     } finally {
       setLoading(false);
     }
   };
+
+  const availableCategories = useMemo(() => {
+    const categories = [...new Set(events.map((event) => event.category).filter(Boolean))];
+
+    const ordered = categories.sort((left, right) => {
+      const leftIndex = CATEGORY_ORDER.indexOf(left);
+      const rightIndex = CATEGORY_ORDER.indexOf(right);
+
+      if (leftIndex === -1 && rightIndex === -1) {
+        return left.localeCompare(right);
+      }
+
+      if (leftIndex === -1) {
+        return 1;
+      }
+
+      if (rightIndex === -1) {
+        return -1;
+      }
+
+      return leftIndex - rightIndex;
+    });
+
+    return ["Trending", ...ordered];
+  }, [events]);
+
+  const visibleEvents = useMemo(() => {
+    const eventsWithMarkets = events.filter((event) => getPrimaryMarket(event));
+
+    const filteredEvents =
+      selectedCategory === "Trending"
+        ? eventsWithMarkets
+        : eventsWithMarkets.filter((event) => event.category === selectedCategory);
+
+    return sortEvents(filteredEvents).slice(0, 12);
+  }, [events, selectedCategory]);
+
+  const chartData = useMemo(() => {
+    const recentEvents = [...events]
+      .filter((event) => getPrimaryMarket(event) && getActivityValue(event) > 0)
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
+      .slice(0, 5)
+      .reverse();
+
+    if (recentEvents.length === 0) {
+      return {
+        labels: ["Now"],
+        values: [0],
+        tooltipTitles: ["No live activity yet"],
+      };
+    }
+
+    return {
+      labels: recentEvents.map((event) =>
+        chartLabelFormatter.format(new Date(event.updatedAt || Date.now()))
+      ),
+      values: recentEvents.map((event) => getActivityValue(event)),
+      tooltipTitles: recentEvents.map((event) => event.title || "Active market"),
+    };
+  }, [events]);
+
+  const statusText = lastSyncedAt
+    ? `Last synced ${lastSyncedAt.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      })} · ${visibleEvents.length} live events`
+    : "Fetching live market data";
 
   return (
     <View style={styles.container}>
@@ -63,19 +179,7 @@ export default function DashboardScreen({ navigation }) {
           showsHorizontalScrollIndicator={false}
           style={styles.categoryScroll}
         >
-          {[
-            "Trending",
-            "Politics",
-            "Entertainment",
-            "Economics",
-            "Health",
-            "Climate and Weather",
-            "Companies",
-            "Crypto",
-            "Elections",
-            "Financials",
-            "Mentions",
-          ].map((curr) => (
+          {availableCategories.map((curr) => (
             <TouchableOpacity
               key={curr}
               onPress={() => setSelectedCategory(curr)}
@@ -94,55 +198,58 @@ export default function DashboardScreen({ navigation }) {
           ))}
         </ScrollView>
 
-        {/* market Chart Component */}
-        <Text style={styles.holdingsTitle}>Your Holdings</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.holdingsTitle}>Recent Market Activity</Text>
+          <TouchableOpacity onPress={fetchEvents} activeOpacity={0.7}>
+            <Text style={styles.refreshText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.statusText}>{statusText}</Text>
         <View style={styles.chartContainer}>
-          <MarketChart />
+          <MarketChart
+            labels={chartData.labels}
+            values={chartData.values}
+            tooltipTitles={chartData.tooltipTitles}
+          />
         </View>
 
         <Text style={styles.forYouTitle}>For You</Text>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {/* News Market Card component - dynamically loaded from API */}
         {loading ? (
           <Text style={styles.loadingText}>Loading events...</Text>
+        ) : visibleEvents.length === 0 ? (
+          <Text style={styles.loadingText}>
+            No live events are available for this category yet.
+          </Text>
         ) : (
-          events
-            // only keep events that have at least one news item **with** a thumbnail
-            .filter(
-              (event) =>
-                event.markets?.[0] &&
-                event.related_news?.some((n) => n?.thumbnail)
-            )
-            .map((event, index) => {
-              const market = event.markets[0];
-
-              // pick the FIRST related_news that actually has a thumbnail
-              const newsWithThumb =
-                event.related_news.find((n) => n?.thumbnail) ||
-                event.related_news[0];
-
-              const yesPrice = market.yes_price || 0;
-              const noPrice = market.no_price || 0;
+          visibleEvents.map((event, index) => {
+              const market = getPrimaryMarket(event);
+              const preferredNews = getPreferredNews(event);
+              const yesPrice = market?.yes_price || 0;
+              const noPrice = market?.no_price || 0;
               const total = yesPrice + noPrice;
               const yesPercentage =
                 total > 0 ? Math.round((yesPrice / total) * 100) : 0;
               const noPercentage =
                 total > 0 ? Math.round((noPrice / total) * 100) : 0;
-
-              // Handle image fallback properly
-              const newsImage = newsWithThumb?.thumbnail
-                ? { uri: newsWithThumb.thumbnail }
+              const newsImage = preferredNews?.thumbnail
+                ? preferredNews.thumbnail
                 : require("../assets/kalshiLogo.png");
 
               return (
                 <NewsMarketCard
                   key={event._id || index}
-                  newsTitle={newsWithThumb?.title || "No title available"}
+                  newsTitle={
+                    preferredNews?.title ||
+                    event.title ||
+                    "Live market update"
+                  }
                   newsCategory={event.category || "Uncategorized"}
                   newsImage={newsImage}
-                  newsUrl={newsWithThumb?.canonical_url}
+                  newsUrl={preferredNews?.canonical_url}
                   marketIcon={require("../assets/kalshiLogo.png")}
-                  marketQuestion={market.name || "Market question"}
+                  marketQuestion={market?.name || event.title || "Market question"}
                   candidates={[
                     { name: "Yes", percentage: yesPercentage },
                     { name: "No", percentage: noPercentage },
@@ -195,10 +302,25 @@ const styles = StyleSheet.create({
     color: "#374151",
     marginBottom: 12,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   holdingsTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#C5C5C5",
+    color: "#111827",
+  },
+  refreshText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#10C287",
+  },
+  statusText: {
+    fontSize: 13,
+    color: "#6B7280",
     marginBottom: 12,
   },
   forYouTitle: {
@@ -214,6 +336,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
     height: 200,
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#DC2626",
+    marginBottom: 12,
   },
   loadingText: {
     fontSize: 14,

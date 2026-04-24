@@ -4,12 +4,15 @@ import { LineChart } from "react-native-chart-kit";
 
 const screenWidth = Dimensions.get("window").width;
 
-export default function MarketChart() {
-  const labels = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-  const values = [120, 140, 160, 180, 150];
+export default function MarketChart({
+  labels = ["Now"],
+  values = [0],
+  tooltipTitles = [],
+}) {
+  const safeLabels = labels.length > 0 ? labels : ["Now"];
+  const safeValues = values.length > 0 ? values : [0];
 
   if (Platform.OS === "web") {
-    // Dynamically import web-only chart libraries
     const ReactChartJS2 = require("react-chartjs-2");
     const ChartJSModule = require("chart.js");
 
@@ -52,10 +55,10 @@ export default function MarketChart() {
     ChartJS.register(verticalLinePlugin);
 
     const data = {
-      labels,
+      labels: safeLabels,
       datasets: [
         {
-          data: values,
+          data: safeValues,
           borderColor: "#08C285",
           borderWidth: 2,
           tension: 0.4,
@@ -91,10 +94,16 @@ export default function MarketChart() {
           padding: 10,
           callbacks: {
             label: function (context) {
-              return `${context.parsed.y}`;
+              return `Volume ${context.parsed.y.toLocaleString()}`;
             },
-            title: function () {
-              return "";
+            title: function (items) {
+              const item = items?.[0];
+
+              if (!item) {
+                return "";
+              }
+
+              return tooltipTitles[item.dataIndex] || item.label || "";
             },
           },
         },
@@ -137,8 +146,8 @@ export default function MarketChart() {
   return (
     <LineChart
       data={{
-        labels,
-        datasets: [{ data: values }],
+        labels: safeLabels,
+        datasets: [{ data: safeValues }],
       }}
       width={screenWidth - 40}
       height={180}
