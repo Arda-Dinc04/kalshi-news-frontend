@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -24,7 +23,6 @@ const TOPICS = [
 
 export default function TopicPickerScreen({ navigation }) {
   const [selectedTopics, setSelectedTopics] = useState([]);
-  const isWeb = Platform.OS === "web";
 
   const toggleTopic = (topic) => {
     if (selectedTopics.includes(topic)) {
@@ -49,7 +47,6 @@ export default function TopicPickerScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <View style={styles.container}>
-        {/* Header Container */}
         <View style={styles.headerContainer}>
           <View style={styles.header}>
             <Text style={styles.headerText}>
@@ -58,13 +55,27 @@ export default function TopicPickerScreen({ navigation }) {
             </Text>
           </View>
 
-          {/* Close button */}
           <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
             <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.doneHeaderButton}
+            onPress={handleDone}
+            disabled={!isDoneEnabled}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.doneHeaderText,
+                isDoneEnabled && styles.doneHeaderTextEnabled,
+              ]}
+            >
+              Done
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Scrollable Content Container */}
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -72,10 +83,8 @@ export default function TopicPickerScreen({ navigation }) {
           bounces={true}
           nestedScrollEnabled={true}
         >
-          {/* Title */}
           <Text style={styles.title}>Topics you are interested in?</Text>
 
-          {/* Topic buttons */}
           <View style={styles.topicsContainer}>
             {TOPICS.map((topic) => {
               const isSelected = selectedTopics.includes(topic);
@@ -94,52 +103,7 @@ export default function TopicPickerScreen({ navigation }) {
               );
             })}
           </View>
-
-          {!isWeb && (
-            <TouchableOpacity
-              style={[
-                styles.doneButton,
-                isDoneEnabled && styles.doneButtonEnabled,
-              ]}
-              onPress={handleDone}
-              disabled={!isDoneEnabled}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.doneButtonText,
-                  isDoneEnabled && styles.doneButtonTextEnabled,
-                ]}
-              >
-                Done
-              </Text>
-            </TouchableOpacity>
-          )}
         </ScrollView>
-
-        {isWeb && (
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={[
-                styles.doneButton,
-                styles.footerButton,
-                isDoneEnabled && styles.doneButtonEnabled,
-              ]}
-              onPress={handleDone}
-              disabled={!isDoneEnabled}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.doneButtonText,
-                  isDoneEnabled && styles.doneButtonTextEnabled,
-                ]}
-              >
-                Done
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -190,6 +154,25 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontWeight: "300",
   },
+  doneHeaderButton: {
+    position: "absolute",
+    right: 20,
+    top: 14,
+    zIndex: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minWidth: 52,
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  doneHeaderText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#9CA3AF",
+  },
+  doneHeaderTextEnabled: {
+    color: "#08C285",
+  },
   scrollView: {
     flex: 1,
   },
@@ -205,7 +188,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: "#000000",
-    marginTop: 24,
+    marginTop: 8,
     marginBottom: 24,
   },
   topicsContainer: {
@@ -229,36 +212,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#000000",
-  },
-  doneButton: {
-    backgroundColor: "#9CE6CD",
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-  },
-  doneButtonEnabled: {
-    backgroundColor: "#08C285",
-  },
-  doneButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FDFFFF",
-  },
-  doneButtonTextEnabled: {
-    color: "#FFFFFF",
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 24,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#F1F1F1",
-  },
-  footerButton: {
-    maxWidth: 1040,
-    alignSelf: "center",
   },
 });
